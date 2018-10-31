@@ -6,12 +6,12 @@ use std::os::windows::ffi::OsStrExt;
 use winapi::shared::minwindef::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use winapi::shared::ntdef::HRESULT;
 use winapi::shared::windef::{HBRUSH, HICON, HMENU, HWND};
-use winapi::um::combaseapi::{CoInitializeEx, COINITBASE_MULTITHREADED};
+use winapi::um::combaseapi::{CoInitializeEx, CoUninitialize, COINITBASE_MULTITHREADED};
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::{
     CreateWindowExW, DefWindowProcW, DispatchMessageW, LoadCursorW, LoadIconW, PeekMessageW,
-    RegisterClassExW, ShowWindow, TranslateMessage, COLOR_WINDOW, CS_HREDRAW, CS_VREDRAW,
-    CW_USEDEFAULT, IDC_ARROW, MSG, PM_REMOVE, SW_SHOW, WM_ACTIVATEAPP, WM_DESTROY,
+    PostQuitMessage, RegisterClassExW, ShowWindow, TranslateMessage, COLOR_WINDOW, CS_HREDRAW,
+    CS_VREDRAW, CW_USEDEFAULT, IDC_ARROW, MSG, PM_REMOVE, SW_SHOW, WM_ACTIVATEAPP, WM_DESTROY,
     WM_ENTERSIZEMOVE, WM_EXITSIZEMOVE, WM_GETMINMAXINFO, WM_MENUCHAR, WM_PAINT, WM_POWERBROADCAST,
     WM_QUIT, WM_SIZE, WM_SYSKEYDOWN, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
 };
@@ -71,14 +71,17 @@ fn main() {
                     if PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
                         TranslateMessage(&msg);
                         DispatchMessageW(&msg);
+                    } else {
+                        //game tick comes here
                     }
                 }
+
+                CoUninitialize();
             }
         }
     }
 }
 
-//NEED: WndProc and wWinMain
 unsafe extern "system" fn wnd_proc(
     hwnd: HWND,
     message: u32,
@@ -93,7 +96,9 @@ unsafe extern "system" fn wnd_proc(
         WM_GETMINMAXINFO => {}
         WM_ACTIVATEAPP => {}
         WM_POWERBROADCAST => {}
-        WM_DESTROY => {}
+        WM_DESTROY => {
+            PostQuitMessage(0);
+        }
         WM_SYSKEYDOWN => {}
         WM_MENUCHAR => {}
         _ => {}
