@@ -50,12 +50,34 @@ impl StepTimer {
         }
     }
 
+    pub fn reset_elapsed_time(&mut self) {
+        unsafe {
+            if QueryPerformanceCounter(&mut self.qpc_last_time) == 0 {
+                panic!("QueryPerformanceCounter failed");
+            }
+        }
+
+        self.leftover_ticks = 0;
+        self.frames_per_second = 0;
+        self.frames_this_second = 0;
+        self.qpc_second_counter = 0;
+    }
+
     pub fn get_elapsed_ticks(&self) -> u64 {
         self.elapsed_ticks
     }
 
+    pub fn get_elapsed_seconds(&self) -> f64 {
+        //directly ported but probably doesn't need to be associated fn
+        Self::ticks_to_seconds(self.elapsed_ticks)
+    }
+
     pub fn get_total_ticks(&self) -> u64 {
         self.total_ticks
+    }
+
+    pub fn get_total_seconds(&self) -> f64 {
+        Self::ticks_to_seconds(self.total_ticks)
     }
 
     pub fn get_frame_count(&self) -> u32 {
@@ -72,5 +94,17 @@ impl StepTimer {
 
     pub fn set_target_elapsed_ticks(&mut self, target_elapsed: u64) {
         self.target_elapsed_ticks = target_elapsed;
+    }
+
+    pub fn set_target_elapsed_seconds(&mut self, target_elapsed_s: f64) {
+        self.target_elapsed_ticks = Self::seconds_to_ticks(target_elapsed_s)
+    }
+
+    pub fn ticks_to_seconds(ticks: u64) -> f64 {
+        ticks as f64 / TICKS_PER_SECOND as f64
+    }
+
+    pub fn seconds_to_ticks(seconds: f64) -> u64 {
+        seconds as u64 * TICKS_PER_SECOND
     }
 }
