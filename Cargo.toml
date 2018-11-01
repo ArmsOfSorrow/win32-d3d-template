@@ -4,4 +4,5 @@ version = "0.1.0"
 authors = ["Krzysztof Lesiak"]
 
 [dependencies]
-winapi = { version = "0.3", features = ["winuser", "minwindef", "windef", "combaseapi", "ntdef", "libloaderapi"] }
+wio = "0.2"
+winapi = { version = "0.3", features = ["winuser", "minwindef", "windef", "combaseapi", "ntdef", "libloaderapi", "d3dcommon", "d3d11_1", "dxgi1_2"] }

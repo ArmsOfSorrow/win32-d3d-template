@@ -1,11 +1,12 @@
 extern crate winapi;
+extern crate wio;
 
 use std::ffi::OsStr;
 use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
 use winapi::shared::minwindef::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use winapi::shared::ntdef::HRESULT;
-use winapi::shared::windef::{HBRUSH, HICON, HMENU, HWND};
+use winapi::shared::windef::{HBRUSH, HMENU, HWND};
 use winapi::um::combaseapi::{CoInitializeEx, CoUninitialize, COINITBASE_MULTITHREADED};
 use winapi::um::libloaderapi::GetModuleHandleW;
 use winapi::um::winuser::{
@@ -16,6 +17,9 @@ use winapi::um::winuser::{
     WM_QUIT, WM_SIZE, WM_SYSKEYDOWN, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
 };
 
+mod step_timer;
+mod game;
+
 fn main() {
     unsafe {
         let hr = CoInitializeEx(std::ptr::null_mut(), COINITBASE_MULTITHREADED);
@@ -23,10 +27,15 @@ fn main() {
             std::process::exit(1);
         }
 
+        //https://stackoverflow.com/questions/1749972/determine-the-current-hinstance
+        let hinstance = GetModuleHandleW(std::ptr::null_mut());
+
         let wndclass_name: Vec<u16> = OsStr::new("testclassname")
             .encode_wide()
             .chain(once(0))
             .collect();
+
+        let idi_icon: Vec<u16> = OsStr::new("IDI_ICON").encode_wide().chain(once(0)).collect();
 
         //window class registration
         let wnd_class = WNDCLASSEXW {
@@ -35,18 +44,18 @@ fn main() {
             lpfnWndProc: Some(wnd_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: GetModuleHandleW(std::ptr::null_mut()), //https://stackoverflow.com/questions/1749972/determine-the-current-hinstance
-            hIcon: 0 as HICON, //replace with LoadIconW() based on hinstance later
+            hInstance: hinstance, 
+            hIcon: LoadIconW(hinstance, idi_icon.as_ptr()),
             hCursor: LoadCursorW(std::ptr::null_mut(), IDC_ARROW),
             hbrBackground: (COLOR_WINDOW + 1) as HBRUSH,
             lpszMenuName: std::ptr::null_mut(),
             lpszClassName: wndclass_name.as_ptr(),
-            hIconSm: 0 as HICON, //replace with LoadIconW() based on hinstance later
+            hIconSm: LoadIconW(hinstance, idi_icon.as_ptr())
         };
 
         let registered = RegisterClassExW(&wnd_class as *const WNDCLASSEXW) != 0;
         if !registered {
-            panic!("couldn't register window class");
+            std::process::exit(1);
         } else {
             let wnd_name: Vec<u16> = OsStr::new("window").encode_wide().chain(once(0)).collect();
             let hwnd = CreateWindowExW(
