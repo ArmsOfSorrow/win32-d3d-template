@@ -1,8 +1,8 @@
-use winapi::shared::windef::HWND;
-use winapi::um::d3dcommon::D3D_FEATURE_LEVEL;
-use winapi::um::d3d11::{ID3D11RenderTargetView, ID3D11DepthStencilView};
-use winapi::um::d3d11_1::{ID3D11Device1, ID3D11DeviceContext1};
 use winapi::shared::dxgi1_2::IDXGISwapChain1;
+use winapi::shared::windef::HWND;
+use winapi::um::d3d11::{ID3D11DepthStencilView, ID3D11RenderTargetView};
+use winapi::um::d3d11_1::{ID3D11Device1, ID3D11DeviceContext1};
+use winapi::um::d3dcommon::D3D_FEATURE_LEVEL;
 use wio::com::ComPtr;
 
 pub struct Game {
@@ -19,23 +19,13 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn on_activated() {
+    pub fn on_activated() {}
 
-    }
+    pub fn on_deactivated() {}
 
-    pub fn on_deactivated() {
+    pub fn on_suspending() {}
 
-    }
+    pub fn on_resuming() {}
 
-    pub fn on_suspending() {
-
-    }
-
-    pub fn on_resuming() {
-
-    }
-
-    pub fn on_window_size_changed() {
-
-    }
+    pub fn on_window_size_changed() {}
 }

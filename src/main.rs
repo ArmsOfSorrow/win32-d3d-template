@@ -17,8 +17,8 @@ use winapi::um::winuser::{
     WM_QUIT, WM_SIZE, WM_SYSKEYDOWN, WNDCLASSEXW, WS_OVERLAPPEDWINDOW,
 };
 
-mod step_timer;
 mod game;
+mod step_timer;
 
 fn main() {
     unsafe {
@@ -35,7 +35,10 @@ fn main() {
             .chain(once(0))
             .collect();
 
-        let idi_icon: Vec<u16> = OsStr::new("IDI_ICON").encode_wide().chain(once(0)).collect();
+        let idi_icon: Vec<u16> = OsStr::new("IDI_ICON")
+            .encode_wide()
+            .chain(once(0))
+            .collect();
 
         //window class registration
         let wnd_class = WNDCLASSEXW {
@@ -44,13 +47,13 @@ fn main() {
             lpfnWndProc: Some(wnd_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: hinstance, 
+            hInstance: hinstance,
             hIcon: LoadIconW(hinstance, idi_icon.as_ptr()),
             hCursor: LoadCursorW(std::ptr::null_mut(), IDC_ARROW),
             hbrBackground: (COLOR_WINDOW + 1) as HBRUSH,
             lpszMenuName: std::ptr::null_mut(),
             lpszClassName: wndclass_name.as_ptr(),
-            hIconSm: LoadIconW(hinstance, idi_icon.as_ptr())
+            hIconSm: LoadIconW(hinstance, idi_icon.as_ptr()),
         };
 
         let registered = RegisterClassExW(&wnd_class as *const WNDCLASSEXW) != 0;
