@@ -50,6 +50,20 @@ impl StepTimer {
         }
     }
 
+    pub fn tick<F>(&mut self, update_func: F) where F : Fn() {
+        unsafe {
+            let mut current_time: LARGE_INTEGER = std::mem::zeroed();
+
+            if QueryPerformanceCounter(&mut current_time) == 0 {
+                panic!("QueryPerformanceCounter failed");
+            }
+
+            let time_delta = current_time.QuadPart() - self.qpc_last_time.QuadPart();
+            self.qpc_last_time = current_time;
+            self.qpc_second_counter += time_delta as u64;
+        }
+    }
+
     pub fn reset_elapsed_time(&mut self) {
         unsafe {
             if QueryPerformanceCounter(&mut self.qpc_last_time) == 0 {
