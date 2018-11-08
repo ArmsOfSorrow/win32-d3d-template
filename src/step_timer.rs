@@ -50,7 +50,10 @@ impl StepTimer {
         }
     }
 
-    pub fn tick<F>(&mut self, update_func: F) where F : Fn() {
+    pub fn tick<F>(&mut self, update_func: F)
+    where
+        F: Fn(),
+    {
         unsafe {
             let mut current_time: LARGE_INTEGER = std::mem::zeroed();
 
@@ -58,9 +61,64 @@ impl StepTimer {
                 panic!("QueryPerformanceCounter failed");
             }
 
-            let time_delta = current_time.QuadPart() - self.qpc_last_time.QuadPart();
+            let mut time_delta = (current_time.QuadPart() - self.qpc_last_time.QuadPart()) as u64;
             self.qpc_last_time = current_time;
-            self.qpc_second_counter += time_delta as u64;
+            self.qpc_second_counter += time_delta;
+
+            // Clamp excessively large time deltas (e.g. after paused in the debugger).
+            if time_delta > self.qpc_max_delta {
+                time_delta = self.qpc_max_delta;
+            }
+
+            // Convert QPC units into a canonical tick format. This cannot overflow due to the previous clamp.
+            time_delta *= TICKS_PER_SECOND;
+            time_delta /= *self.qpc_frequency.QuadPart() as u64;
+
+            let last_frame_count = self.frame_count;
+
+            if self.is_fixed_timestep {
+                // Fixed timestep update logic
+
+                // If the app is running very close to the target elapsed time (within 1/4 of a millisecond) just clamp
+                // the clock to exactly match the target value. This prevents tiny and irrelevant errors
+                // from accumulating over time. Without this clamping, a game that requested a 60 fps
+                // fixed update, running with vsync enabled on a 59.94 NTSC display, would eventually
+                // accumulate enough tiny errors that it would drop a frame. It is better to just round
+                // small deviations down to zero to leave things running smoothly.
+                if (time_delta - self.target_elapsed_ticks) < TICKS_PER_SECOND / 4000 {
+                    time_delta = self.target_elapsed_ticks;
+                }
+
+                self.leftover_ticks += time_delta;
+
+                while self.leftover_ticks >= self.target_elapsed_ticks {
+                    self.elapsed_ticks = self.target_elapsed_ticks;
+                    self.total_ticks += self.target_elapsed_ticks;
+                    self.leftover_ticks -= self.target_elapsed_ticks;
+                    self.frame_count += 1;
+
+                    update_func();
+                }
+            } else {
+                // Variable timestep update logic.
+                self.elapsed_ticks = time_delta;
+                self.total_ticks += time_delta;
+                self.leftover_ticks = 0;
+                self.frame_count += 1;
+
+                update_func();
+            }
+
+            // Track the current framerate
+            if self.frame_count != last_frame_count {
+                self.frames_this_second += 1;
+            }
+
+            if self.qpc_second_counter >= *self.qpc_frequency.QuadPart() as u64 {
+                self.frames_per_second = self.frames_this_second;
+                self.frames_this_second = 0;
+                self.qpc_second_counter %= *self.qpc_frequency.QuadPart() as u64;
+            }
         }
     }
 
