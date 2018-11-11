@@ -1,6 +1,7 @@
 extern crate winapi;
 extern crate wio;
 
+use game::Game;
 use std::ffi::OsStr;
 use std::iter::once;
 use std::os::windows::ffi::OsStrExt;
@@ -22,10 +23,14 @@ mod step_timer;
 
 fn main() {
     unsafe {
+        //TODO: XMVerifyCPUSupport is missing. There are no bindings since it's c++.
+
         let hr = CoInitializeEx(std::ptr::null_mut(), COINITBASE_MULTITHREADED);
         if failed(hr) {
             std::process::exit(1);
         }
+
+        // let game = Game {};
 
         //https://stackoverflow.com/questions/1749972/determine-the-current-hinstance
         let hinstance = GetModuleHandleW(std::ptr::null_mut());
@@ -89,6 +94,9 @@ fn main() {
                 }
 
                 CoUninitialize();
+
+                //not sure what to do about msg.wparam.
+                //probably std::process::exit as in the other cases.
             }
         }
     }
