@@ -50,9 +50,9 @@ impl StepTimer {
         }
     }
 
-    pub fn tick<F>(&mut self, update_func: F)
+    pub fn tick<F>(&mut self, mut update_func: F)
     where
-        F: Fn(),
+        F: FnMut(&mut StepTimer),
     {
         unsafe {
             let mut current_time: LARGE_INTEGER = std::mem::zeroed();
@@ -97,7 +97,7 @@ impl StepTimer {
                     self.leftover_ticks -= self.target_elapsed_ticks;
                     self.frame_count += 1;
 
-                    update_func();
+                    update_func(self);
                 }
             } else {
                 // Variable timestep update logic.
@@ -106,7 +106,7 @@ impl StepTimer {
                 self.leftover_ticks = 0;
                 self.frame_count += 1;
 
-                update_func();
+                update_func(self);
             }
 
             // Track the current framerate

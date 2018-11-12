@@ -45,7 +45,13 @@ impl Game {
         self.create_resources();
     }
 
-    pub fn tick() {}
+    pub fn tick(&mut self) {
+        //this is kinda sucky to port from c++
+
+        self.timer.tick(|t| {});
+
+        self.render();
+    }
 
     pub fn on_activated() {}
 
@@ -59,8 +65,8 @@ impl Game {
 
     pub fn get_default_size(width: i32, height: i32) {}
 
-    fn update(timer: &StepTimer) {}
-    fn render() {}
+    fn update(&mut self, timer: &mut StepTimer) {}
+    fn render(&mut self) {}
     fn clear() {}
     fn present() {}
     fn create_device(&mut self) {}
