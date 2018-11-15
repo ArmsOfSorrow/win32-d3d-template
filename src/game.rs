@@ -1,13 +1,21 @@
 use step_timer::StepTimer;
 use winapi::shared::dxgi1_2::IDXGISwapChain1;
+use winapi::shared::minwindef::UINT;
 use winapi::shared::windef::HWND;
+use winapi::shared::winerror::{DXGI_ERROR_DEVICE_REMOVED, DXGI_ERROR_DEVICE_RESET};
 use winapi::um::d3d11::{
-    ID3D11DepthStencilView, ID3D11RenderTargetView, D3D11_CLEAR_DEPTH, D3D11_CLEAR_STENCIL,
-    D3D11_MAX_DEPTH, D3D11_MIN_DEPTH, D3D11_VIEWPORT,
+    D3D11CreateDevice, ID3D11DepthStencilView, ID3D11RenderTargetView, D3D11_CLEAR_DEPTH,
+    D3D11_CLEAR_STENCIL, D3D11_CREATE_DEVICE_DEBUG, D3D11_MAX_DEPTH, D3D11_MIN_DEPTH,
+    D3D11_VIEWPORT,
 };
 use winapi::um::d3d11_1::{ID3D11Device1, ID3D11DeviceContext1};
-use winapi::um::d3dcommon::{D3D_FEATURE_LEVEL, D3D_FEATURE_LEVEL_9_1};
+use winapi::um::d3dcommon::{
+    D3D_FEATURE_LEVEL, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_11_0,
+    D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2, D3D_FEATURE_LEVEL_9_3,
+};
 use wio::com::ComPtr;
+
+//TODO: mark everything as unsafe
 
 pub struct Game {
     window: HWND,
@@ -39,7 +47,7 @@ impl Game {
             }
         }
     }
-    pub fn initialize(&mut self, window: HWND, width: i32, height: i32) {
+    pub unsafe fn initialize(&mut self, window: HWND, width: i32, height: i32) {
         self.window = window;
         self.output_width = std::cmp::max(width, 1);
         self.output_height = std::cmp::max(height, 1);
@@ -106,6 +114,24 @@ impl Game {
         }
     }
 
+    fn present(&mut self) {
+        // The first argument instructs DXGI to block until VSync, putting the application
+        // to sleep until the next VSync. This ensures we don't waste any cycles rendering
+        // frames that will never be displayed to the screen.
+        unsafe {
+            let hr = self.swap_chain.Present(1, 0);
+
+            // If the device was reset we must completely reinitialize the renderer.
+            if hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET {
+                self.on_device_lost();
+            } else {
+                //not sure what to do about this one. In C++ you can theoretically catch it but
+                //would anyone do that in practice?
+                panic!("Present failed without device removed or reset error");
+            }
+        }
+    }
+
     pub fn on_activated(&mut self) {
         // TODO: Game is becoming active window.
     }
@@ -139,8 +165,25 @@ impl Game {
         *height = 600;
     }
 
-    fn present(&mut self) {}
-    fn create_device(&mut self) {}
+    unsafe fn create_device(&mut self) {
+        let mut creation_flags: UINT = 0;
+
+        #[cfg(debug_assertions)]
+        {
+            creation_flags |= D3D11_CREATE_DEVICE_DEBUG;
+        }
+
+        let feature_levels = [
+            // TODO: Modify for supported Direct3D feature levels
+            D3D_FEATURE_LEVEL_11_1,
+            D3D_FEATURE_LEVEL_11_0,
+            D3D_FEATURE_LEVEL_10_1,
+            D3D_FEATURE_LEVEL_10_0,
+            D3D_FEATURE_LEVEL_9_3,
+            D3D_FEATURE_LEVEL_9_2,
+            D3D_FEATURE_LEVEL_9_1,
+        ];
+    }
     fn create_resources(&mut self) {}
-    fn on_device_lost() {}
+    fn on_device_lost(&mut self) {}
 }

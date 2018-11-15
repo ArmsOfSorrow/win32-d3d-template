@@ -21,6 +21,8 @@ use winapi::um::winuser::{
 mod game;
 mod step_timer;
 
+//TODO: mark everything as unsafe
+
 fn main() {
     unsafe {
         //TODO: XMVerifyCPUSupport is missing. There are no bindings since it's c++.

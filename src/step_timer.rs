@@ -3,6 +3,8 @@ use winapi::um::winnt::LARGE_INTEGER;
 
 const TICKS_PER_SECOND: u64 = 10000000;
 
+//TODO: mark everything as unsafe
+
 pub struct StepTimer {
     qpc_frequency: LARGE_INTEGER,
     qpc_last_time: LARGE_INTEGER,
