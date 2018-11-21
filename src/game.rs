@@ -4,14 +4,15 @@ use winapi::shared::minwindef::UINT;
 use winapi::shared::windef::HWND;
 use winapi::shared::winerror::{DXGI_ERROR_DEVICE_REMOVED, DXGI_ERROR_DEVICE_RESET};
 use winapi::um::d3d11::{
-    D3D11CreateDevice, ID3D11DepthStencilView, ID3D11RenderTargetView, D3D11_CLEAR_DEPTH,
-    D3D11_CLEAR_STENCIL, D3D11_CREATE_DEVICE_DEBUG, D3D11_MAX_DEPTH, D3D11_MIN_DEPTH,
-    D3D11_VIEWPORT,
+    D3D11CreateDevice, ID3D11DepthStencilView, ID3D11Device, ID3D11DeviceContext,
+    ID3D11RenderTargetView, D3D11_CLEAR_DEPTH, D3D11_CLEAR_STENCIL, D3D11_CREATE_DEVICE_DEBUG,
+    D3D11_MAX_DEPTH, D3D11_MIN_DEPTH, D3D11_SDK_VERSION, D3D11_VIEWPORT,
 };
 use winapi::um::d3d11_1::{ID3D11Device1, ID3D11DeviceContext1};
 use winapi::um::d3dcommon::{
-    D3D_FEATURE_LEVEL, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_11_0,
-    D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2, D3D_FEATURE_LEVEL_9_3,
+    D3D_DRIVER_TYPE_HARDWARE, D3D_FEATURE_LEVEL, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_10_1,
+    D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_9_1, D3D_FEATURE_LEVEL_9_2,
+    D3D_FEATURE_LEVEL_9_3,
 };
 use wio::com::ComPtr;
 
@@ -150,7 +151,7 @@ impl Game {
         // TODO: Game is being power-resumed (or returning from minimize).
     }
 
-    pub fn on_window_size_changed(&mut self, width: i32, height: i32) {
+    pub unsafe fn on_window_size_changed(&mut self, width: i32, height: i32) {
         self.output_width = std::cmp::max(width, 1);
         self.output_height = std::cmp::min(height, 1);
 
@@ -183,7 +184,42 @@ impl Game {
             D3D_FEATURE_LEVEL_9_2,
             D3D_FEATURE_LEVEL_9_1,
         ];
+
+        let device: ComPtr<ID3D11Device> = ComPtr::from_raw(std::ptr::null_mut());
+        let context: ComPtr<ID3D11DeviceContext> = ComPtr::from_raw(std::ptr::null_mut());
+        let hr = D3D11CreateDevice(
+            std::ptr::null_mut(), // specify nullptr to use the default adapter
+            D3D_DRIVER_TYPE_HARDWARE,
+            std::ptr::null_mut(),
+            creation_flags,
+            &feature_levels[0],
+            feature_levels.len() as u32,
+            D3D11_SDK_VERSION,
+            &mut device.as_raw(),
+            &mut self.feature_level,
+            &mut context.as_raw(),
+        );
+
+        if ::failed(hr) {
+            panic!("D3D11CreateDevice failed with HRESULT {:x}", hr);
+        }
+
+        //TODO: debug layer support
+        let device = device.cast::<ID3D11Device1>().unwrap();
+        self.d3d_device = device;
+        let context = context.cast::<ID3D11DeviceContext1>().unwrap();
+        self.d3d_context = context;
+
+        // TODO: Initialize device dependent objects here (independent of window size).
     }
-    fn create_resources(&mut self) {}
-    fn on_device_lost(&mut self) {}
+
+    // Allocate all memory resources that change on a window SizeChanged event.
+    unsafe fn create_resources(&mut self) {}
+
+    unsafe fn on_device_lost(&mut self) {
+        //TODO: find out how to drop/release ComPtr references
+
+        self.create_device();
+        self.create_resources();
+    }
 }
