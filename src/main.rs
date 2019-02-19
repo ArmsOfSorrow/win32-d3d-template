@@ -32,7 +32,7 @@ fn main() {
             std::process::exit(1);
         }
 
-        // let game = Game {};
+        let game = Game::new();
 
         //https://stackoverflow.com/questions/1749972/determine-the-current-hinstance
         let hinstance = GetModuleHandleW(std::ptr::null_mut());
@@ -67,6 +67,11 @@ fn main() {
         if !registered {
             std::process::exit(1);
         } else {
+            let mut width = 0;
+            let mut height = 0;
+
+            game.get_default_size(&mut width, &mut height);
+
             let wnd_name: Vec<u16> = OsStr::new("window").encode_wide().chain(once(0)).collect();
             let hwnd = CreateWindowExW(
                 0,
@@ -85,6 +90,7 @@ fn main() {
 
             if hwnd != std::ptr::null_mut() {
                 ShowWindow(hwnd, SW_SHOW);
+                // game.initialize(hwnd, width: i32, height: i32)
                 let mut msg: MSG = std::mem::zeroed();
                 while WM_QUIT != msg.message {
                     if PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {

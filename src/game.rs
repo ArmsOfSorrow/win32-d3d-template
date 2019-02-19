@@ -23,11 +23,11 @@ pub struct Game {
     output_width: i32,
     output_height: i32,
     feature_level: D3D_FEATURE_LEVEL,
-    d3d_device: ComPtr<ID3D11Device1>,
-    d3d_context: ComPtr<ID3D11DeviceContext1>,
-    swap_chain: ComPtr<IDXGISwapChain1>,
-    render_target_view: ComPtr<ID3D11RenderTargetView>,
-    depth_stencil_view: ComPtr<ID3D11DepthStencilView>,
+    d3d_device: Option<ComPtr<ID3D11Device1>>,
+    d3d_context: Option<ComPtr<ID3D11DeviceContext1>>,
+    swap_chain: Option<ComPtr<IDXGISwapChain1>>,
+    render_target_view: Option<ComPtr<ID3D11RenderTargetView>>,
+    depth_stencil_view: Option<ComPtr<ID3D11DepthStencilView>>,
     timer: StepTimer,
 }
 
@@ -39,11 +39,16 @@ impl Game {
                 output_width: 800,
                 output_height: 600,
                 feature_level: D3D_FEATURE_LEVEL_9_1,
-                d3d_device: ComPtr::from_raw(std::ptr::null_mut()),
-                d3d_context: ComPtr::from_raw(std::ptr::null_mut()),
-                swap_chain: ComPtr::from_raw(std::ptr::null_mut()),
-                render_target_view: ComPtr::from_raw(std::ptr::null_mut()),
-                depth_stencil_view: ComPtr::from_raw(std::ptr::null_mut()),
+                //these are all kinda sucky because ComPtr can't be null. why though?
+                //it's all unsafe anyway at that level. how do other people handle this?
+                //gfx delegates that to someone above, passing ComPtrs into new()
+                //more here: https://github.com/gfx-rs/gfx/blob/master/src/backend/dx11/src/device.rs
+                //solution: um, just use option<T>. damn.
+                d3d_device: None,
+                d3d_context: None,
+                swap_chain: None,
+                render_target_view: None,
+                depth_stencil_view: None,
                 timer: StepTimer::new(),
             }
         }
@@ -85,33 +90,34 @@ impl Game {
     }
 
     fn clear(&mut self) {
-        let render_target_view = &mut self.render_target_view;
-        let depth_stencil_view = &mut self.depth_stencil_view;
-        unsafe {
-            self.d3d_context
-                .ClearRenderTargetView(render_target_view.as_raw(), &[0.0, 0.0, 0.5, 1.0f32]);
-            self.d3d_context.ClearDepthStencilView(
-                depth_stencil_view.as_raw(),
-                D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
-                1.0f32,
-                0,
-            );
-            self.d3d_context.OMSetRenderTargets(
-                1,
-                &render_target_view.as_raw(),
-                depth_stencil_view.as_raw(),
-            );
+        if self.render_target_view.is_some()
+            && self.depth_stencil_view.is_some()
+            && self.d3d_context.is_some()
+        {
+            let rtv = &mut self.render_target_view.as_ref().unwrap();
+            let dsv = &mut self.depth_stencil_view.as_ref().unwrap();
+            let context = self.d3d_context.as_ref().unwrap();
+            unsafe {
+                context.ClearRenderTargetView(rtv.as_raw(), &[0.0, 0.0, 0.5, 1.0f32]);
+                context.ClearDepthStencilView(
+                    dsv.as_raw(),
+                    D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+                    1.0f32,
+                    0,
+                );
+                context.OMSetRenderTargets(1, &rtv.as_raw(), dsv.as_raw());
 
-            let viewport = D3D11_VIEWPORT {
-                TopLeftX: 0.0f32,
-                TopLeftY: 0.0f32,
-                Width: self.output_width as f32,
-                Height: self.output_height as f32,
-                MinDepth: D3D11_MIN_DEPTH,
-                MaxDepth: D3D11_MAX_DEPTH,
-            };
+                let viewport = D3D11_VIEWPORT {
+                    TopLeftX: 0.0f32,
+                    TopLeftY: 0.0f32,
+                    Width: self.output_width as f32,
+                    Height: self.output_height as f32,
+                    MinDepth: D3D11_MIN_DEPTH,
+                    MaxDepth: D3D11_MAX_DEPTH,
+                };
 
-            self.d3d_context.RSSetViewports(1, &viewport);
+                context.RSSetViewports(1, &viewport);
+            }
         }
     }
 
@@ -120,7 +126,7 @@ impl Game {
         // to sleep until the next VSync. This ensures we don't waste any cycles rendering
         // frames that will never be displayed to the screen.
         unsafe {
-            let hr = self.swap_chain.Present(1, 0);
+            let hr = self.swap_chain.as_ref().unwrap().Present(1, 0); //TODO: get rid of unwraps
 
             // If the device was reset we must completely reinitialize the renderer.
             if hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET {
@@ -185,8 +191,8 @@ impl Game {
             D3D_FEATURE_LEVEL_9_1,
         ];
 
-        let device: ComPtr<ID3D11Device> = ComPtr::from_raw(std::ptr::null_mut());
-        let context: ComPtr<ID3D11DeviceContext> = ComPtr::from_raw(std::ptr::null_mut());
+        let mut device_ptr: *mut ID3D11Device = std::ptr::null_mut();
+        let mut context_ptr: *mut ID3D11DeviceContext = std::ptr::null_mut();
         let hr = D3D11CreateDevice(
             std::ptr::null_mut(), // specify nullptr to use the default adapter
             D3D_DRIVER_TYPE_HARDWARE,
@@ -195,9 +201,9 @@ impl Game {
             &feature_levels[0],
             feature_levels.len() as u32,
             D3D11_SDK_VERSION,
-            &mut device.as_raw(),
+            &mut device_ptr,
             &mut self.feature_level,
-            &mut context.as_raw(),
+            &mut context_ptr,
         );
 
         if ::failed(hr) {
@@ -205,10 +211,14 @@ impl Game {
         }
 
         //TODO: debug layer support
-        let device = device.cast::<ID3D11Device1>().unwrap();
-        self.d3d_device = device;
-        let context = context.cast::<ID3D11DeviceContext1>().unwrap();
-        self.d3d_context = context;
+        let device = ComPtr::from_raw(device_ptr)
+            .cast::<ID3D11Device1>()
+            .unwrap();
+        self.d3d_device = Some(device);
+        let context = ComPtr::from_raw(context_ptr)
+            .cast::<ID3D11DeviceContext1>()
+            .unwrap();
+        self.d3d_context = Some(context);
 
         // TODO: Initialize device dependent objects here (independent of window size).
     }
@@ -218,7 +228,7 @@ impl Game {
 
     unsafe fn on_device_lost(&mut self) {
         //TODO: find out how to drop/release ComPtr references
-
+        //std::mem::replace should do it
         self.create_device();
         self.create_resources();
     }
