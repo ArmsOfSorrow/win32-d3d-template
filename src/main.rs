@@ -32,7 +32,7 @@ fn main() {
             std::process::exit(1);
         }
 
-        let game = Game::new();
+        let mut game = Game::new();
 
         //https://stackoverflow.com/questions/1749972/determine-the-current-hinstance
         let hinstance = GetModuleHandleW(std::ptr::null_mut());
@@ -90,14 +90,16 @@ fn main() {
 
             if hwnd != std::ptr::null_mut() {
                 ShowWindow(hwnd, SW_SHOW);
-                // game.initialize(hwnd, width: i32, height: i32)
+                //TODO: setwindowlongptr and getclientrect for width and height
+                game.initialize(hwnd, 800, 600);
+
                 let mut msg: MSG = std::mem::zeroed();
                 while WM_QUIT != msg.message {
                     if PeekMessageW(&mut msg, std::ptr::null_mut(), 0, 0, PM_REMOVE) != 0 {
                         TranslateMessage(&msg);
                         DispatchMessageW(&msg);
                     } else {
-                        //game tick comes here
+                        game.tick();
                     }
                 }
 
